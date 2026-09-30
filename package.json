@@ -1,0 +1,21 @@
+{
+  "name": "pipeline-lab-coa",
+  "version": "1.0.0",
+  "description": "Interactive 5-Stage RISC CPU Pipeline Architecture & Datapath Simulation Studio",
+  "main": "simulator.js",
+  "scripts": {
+    "start": "python -m http.server 5500",
+    "test": "node tests/test_suite.js"
+  },
+  "keywords": [
+    "coa",
+    "computer-organization",
+    "pipelining",
+    "risc",
+    "mips",
+    "cpu-simulator",
+    "micro-project"
+  ],
+  "author": "Vedant",
+  "license": "MIT"
+}

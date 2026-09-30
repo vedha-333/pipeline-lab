@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#090e17">
+    <meta name="description" content="Pipeline Lab - Interactive Computer Organization and Architecture 5-Stage RISC Pipeline Simulator with Datapath Hardware Visualizer, Hazard Detection, and Amdahl's Law Analysis.">
+    <title>Pipeline Lab — COA 5-Stage RISC Architecture Simulator</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Top Navigation -->
+    <header class="top-navbar">
+        <a class="brand" href="#">
+            <span class="brand-icon">▦</span>
+            <span class="brand-name">PIPELINE<span class="brand-accent">LAB</span></span>
+        </a>
+        <nav class="nav-links">
+            <a href="#simulator">Simulator</a>
+            <a href="#datapath-section">Datapath View</a>
+            <a href="#theory">Architecture Guide</a>
+            <a href="#amdahl">Amdahl's Law</a>
+        </nav>
+        <div class="nav-actions">
+            <span class="badge">COA · 5-STAGE RISC</span>
+            <button id="themeToggle" class="theme-toggle-btn" type="button" aria-label="Switch theme" title="Toggle theme">☼</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="eyebrow">COMPUTER ORGANIZATION & ARCHITECTURE</div>
+            <h1 class="hero-title">
+                See instructions<br>
+                <span class="brand-accent">move through a CPU.</span>
+            </h1>
+            <p class="hero-desc">
+                Explore instruction execution, pipeline timing, data dependencies, stalls, and performance in an interactive five-stage processor model.
+            </p>
+            <div class="hero-cta">
+                <a class="btn btn-primary" href="#simulator">Open simulator <span>↓</span></a>
+            </div>
+            <div class="hero-stats-bar">
+                <div class="stat-item">
+                    <strong>05</strong>
+                    <span>PIPELINE STAGES</span>
+                </div>
+                <div class="stat-item">
+                    <strong>16+</strong>
+                    <span>INSTRUCTIONS</span>
+                </div>
+                <div class="stat-item">
+                    <strong>03</strong>
+                    <span>HAZARD MODELS</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Workbench Section -->
+        <section id="simulator" class="main-container">
+            <div class="section-title-bar">
+                <div>
+                    <div class="eyebrow">INTERACTIVE WORKBENCH</div>
+                    <h2 class="section-title">CPU simulator</h2>
+                </div>
+                <div class="status-indicator">
+                    <span class="dot"></span>
+                    <span id="runLabel">READY</span>
+                </div>
+            </div>
+
+            <!-- Workbench Grid: Assembly Editor + Processor Summary -->
+            <div class="workbench-grid">
+                <!-- Editor Panel -->
+                <div class="panel editor-panel">
+                    <div class="panel-header">
+                        <div>
+                            <div class="panel-title">Assembly Program</div>
+                            <div class="panel-subtitle">Enter MIPS-style RISC instructions · Labels & comments (#) supported</div>
+                        </div>
+                        <select id="example" class="control-select" aria-label="Load Example Preset">
+                            <option value="hazard">Preset: RAW Data Dependency</option>
+                            <option value="basic">Preset: Independent Instructions</option>
+                            <option value="memory">Preset: Load-Use Hazard & Store</option>
+                            <option value="branch">Preset: Taken Branch Flush</option>
+                            <option value="loop">Preset: Iterative Loop (BNE)</option>
+                            <option value="logic">Preset: Bitwise & Comparison</option>
+                            <option value="custom">Custom Program</option>
+                        </select>
+                    </div>
+
+                    <textarea id="program" class="editor-textarea" spellcheck="false" placeholder="# Type your assembly instructions here..."></textarea>
+                    
+                    <div class="editor-footer">
+                        <span>Tip: Press <b>Ctrl + Enter</b> to simulate · Register names R0–R31</span>
+                        <span id="lineCount">0 lines</span>
+                    </div>
+
+                    <!-- Simulator Controls -->
+                    <div class="controls-bar">
+                        <label class="toggle-label" title="Enable ALU and MEM data forwarding bypass paths">
+                            <input id="forwarding" type="checkbox" checked>
+                            <span>Forwarding Unit</span>
+                        </label>
+                        <label class="toggle-label" title="Model Harvard (separate) vs Princeton (unified shared) memory architecture">
+                            <input id="shared" type="checkbox">
+                            <span>Shared Memory Bus</span>
+                        </label>
+                        <div class="right-group">
+                            <button id="run" class="btn btn-primary" title="Simulate entire program">▶ Run Simulation</button>
+                            <button id="reset" class="btn btn-quiet" title="Clear results and reset state">Reset</button>
+                        </div>
+                    </div>
+
+                    <div id="error" class="error-banner" role="alert"></div>
+
+                    <!-- Register File State Preview -->
+                    <div class="panel-header" style="margin-top: 10px;">
+                        <div class="panel-title" style="font-size: 0.95rem;">Register File (R0–R31)</div>
+                        <select id="regFormatSelect" class="control-select" style="padding: 4px 8px; font-size: 0.75rem;">
+                            <option value="dec">Decimal</option>
+                            <option value="hex">Hexadecimal</option>
+                            <option value="bin">Binary</option>
+                        </select>
+                    </div>
+                    <div id="registerGrid" class="register-grid"></div>
+                </div>
+
+                <!-- Processor Summary Column -->
+                <div class="side-column">
+                    <!-- Stages Card -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">5-Stage Pipeline Model</div>
+                            <span class="badge" style="font-size: 0.65rem;">IN-ORDER RISC</span>
+                        </div>
+                        <div class="stages-legend-list">
+                            <div class="stage-pill-row stage-if">
+                                <span class="stage-num">01</span>
+                                <span class="stage-tag">IF</span>
+                                <span class="stage-desc">Instruction Fetch (PC + 4)</span>
+                            </div>
+                            <div class="stage-pill-row stage-id">
+                                <span class="stage-num">02</span>
+                                <span class="stage-tag">ID</span>
+                                <span class="stage-desc">Decode & Register Read</span>
+                            </div>
+                            <div class="stage-pill-row stage-ex">
+                                <span class="stage-num">03</span>
+                                <span class="stage-tag">EX</span>
+                                <span class="stage-desc">ALU / Branch Target Calc</span>
+                            </div>
+                            <div class="stage-pill-row stage-mem">
+                                <span class="stage-num">04</span>
+                                <span class="stage-tag">MEM</span>
+                                <span class="stage-desc">Data Memory Access (LW/SW)</span>
+                            </div>
+                            <div class="stage-pill-row stage-wb">
+                                <span class="stage-num">05</span>
+                                <span class="stage-tag">WB</span>
+                                <span class="stage-desc">Register Write Back</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Run Summary Metrics -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">Performance Metrics</div>
+                            <span class="badge" style="font-size: 0.65rem;">CALCULATED</span>
+                        </div>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <small>Completed Instructions</small>
+                                <strong id="mInst">—</strong>
+                            </div>
+                            <div class="metric-card">
+                                <small>Total Clock Cycles</small>
+                                <strong id="mCycles">—</strong>
+                            </div>
+                            <div class="metric-card">
+                                <small>Stalls / Flushes</small>
+                                <strong id="mStalls">—</strong>
+                            </div>
+                            <div class="metric-card">
+                                <small>Cycles Per Inst (CPI)</small>
+                                <strong id="mCpi">—</strong>
+                            </div>
+                            <div class="metric-card">
+                                <small>Speedup vs Serial</small>
+                                <strong id="mSpeed">—</strong>
+                            </div>
+                            <div class="metric-card">
+                                <small>Throughput (IPC)</small>
+                                <strong id="mThrough">—</strong>
+                            </div>
+                        </div>
+                        <p class="metrics-note">
+                            Speedup is calculated against an unpipelined 5-cycle serial execution baseline (5 × N / C).
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Central Execution Tabs: Timeline & Datapath -->
+            <div id="datapath-section" class="panel timeline-panel">
+                <div class="view-tabs">
+                    <button class="tab-btn active" data-tab="tab-timeline">📊 Pipeline Timeline Schedule</button>
+                    <button class="tab-btn" data-tab="tab-datapath">⚏ 5-Stage Datapath Hardware View</button>
+                    <button class="tab-btn" data-tab="tab-hazards">⚠ Hazard Event Log</button>
+                    <button class="tab-btn" data-tab="tab-memory">🗄 Data Memory Map</button>
+                </div>
+
+                <!-- Tab 1: Timeline -->
+                <div id="tab-timeline" class="tab-pane active">
+                    <div class="timeline-toolbar">
+                        <div class="legend-group">
+                            <span class="legend-item"><i class="legend-dot dot-if"></i> IF</span>
+                            <span class="legend-item"><i class="legend-dot dot-id"></i> ID</span>
+                            <span class="legend-item"><i class="legend-dot dot-ex"></i> EX</span>
+                            <span class="legend-item"><i class="legend-dot dot-mem"></i> MEM</span>
+                            <span class="legend-item"><i class="legend-dot dot-wb"></i> WB</span>
+                            <span class="legend-item"><i class="legend-dot dot-stall"></i> STALL</span>
+                        </div>
+                        <div class="right-group" style="display: flex; gap: 8px;">
+                            <button id="exportMarkdownBtn" class="btn btn-sm" title="Export report as Markdown">Export Markdown</button>
+                            <button id="exportCsvBtn" class="btn btn-sm" title="Export schedule as CSV">Export CSV</button>
+                        </div>
+                    </div>
+
+                    <div id="timeline" class="timeline-table-wrap empty">
+                        <div class="empty-state-text">Your cycle-by-cycle pipeline schedule will appear here after running simulation.</div>
+                    </div>
+
+                    <div class="cycle-stepper-bar">
+                        <button id="prevStep" class="btn btn-sm" title="Step backward one cycle">◂ Prev</button>
+                        <button id="playBtn" class="btn btn-sm" title="Auto-advance clock cycles">▶ Auto Play</button>
+                        <button id="step" class="btn btn-sm btn-primary" title="Step forward one cycle">Step Next ▸</button>
+                        <input id="cycleSlider" type="range" min="1" max="1" value="1" disabled title="Scrub through cycles">
+                        <span id="currentCycleLabel" class="stage-code" style="font-size: 0.85rem; min-width: 100px; text-align: right;">Cycle 1 / 1</span>
+                    </div>
+                    <div id="timelineNote" class="editor-footer" style="margin-top: 10px;">Run a program to generate the cycle chart.</div>
+                </div>
+
+                <!-- Tab 2: Hardware Datapath View -->
+                <div id="tab-datapath" class="tab-pane">
+                    <div id="datapathView">
+                        <div class="empty-state-text">Run simulation and scrub cycles to inspect active stage hardware.</div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Hazards Stream -->
+                <div id="tab-hazards" class="tab-pane">
+                    <div class="panel-header">
+                        <div class="panel-title">Diagnostic Hazard Events</div>
+                        <span id="hazardCount" class="badge">0 EVENTS</span>
+                    </div>
+                    <div id="hazards" class="hazards empty-small">No simulation results yet.</div>
+                </div>
+
+                <!-- Tab 4: Data Memory -->
+                <div id="tab-memory" class="tab-pane">
+                    <div class="panel-header">
+                        <div class="panel-title">Data Memory Map (Word Addresses)</div>
+                        <span class="badge">WORD-INDEXED</span>
+                    </div>
+                    <div id="memory">
+                        <div class="empty-state-text">Data memory reads and writes will appear here.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Learning Guide Section -->
+        <section id="theory" class="main-container">
+            <div class="eyebrow">THEORY & LEARNING GUIDE</div>
+            <h2 class="section-title">What the Simulator Models</h2>
+            
+            <div class="theory-grid">
+                <div class="theory-card">
+                    <span class="theory-num">01</span>
+                    <h3>Pipelined Instruction Cycle</h3>
+                    <p>
+                        In a single-cycle CPU, each instruction must sequentially execute through Fetch, Decode, Execute, Memory, and Writeback before the next instruction begins. Pipelining divides the datapath into 5 independent stages separated by pipeline latches, allowing up to 5 instructions to be processed simultaneously.
+                    </p>
+                </div>
+                <div class="theory-card">
+                    <span class="theory-num">02</span>
+                    <h3>Pipeline Hazards & Solutions</h3>
+                    <p>
+                        <b>RAW Hazards:</b> Resolved via Forwarding bypass wires directly from EX/MEM or MEM/WB latches to the ALU inputs. <br>
+                        <b>Load-Use Hazards:</b> Data from memory is only ready after MEM stage; requires 1 stall bubble even with forwarding.<br>
+                        <b>Control Hazards:</b> Branch resolution in EX stage incurs 2-cycle penalty for taken branches.
+                    </p>
+                </div>
+                <div class="theory-card">
+                    <span class="theory-num">03</span>
+                    <h3>Performance & CPI Math</h3>
+                    <p>
+                        <b>CPI:</b> Total Cycles / Completed Instructions (approaches 1.0 in ideal conditions).<br>
+                        <b>Throughput (IPC):</b> Completed Instructions / Total Cycles = 1 / CPI.<br>
+                        <b>Speedup:</b> (Serial Execution Time / Pipelined Time) = (5 × N) / C.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Supported ISA Table -->
+            <div class="isa-reference-card">
+                <div class="panel-title">Supported RISC Instruction Set Reference</div>
+                <div class="isa-table-wrap">
+                    <table class="isa-table">
+                        <thead>
+                            <tr>
+                                <th>Instruction</th>
+                                <th>Type</th>
+                                <th>Syntax</th>
+                                <th>Operation Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><b>ADD / SUB</b></td>
+                                <td>R-Type</td>
+                                <td><code>ADD Rd, Rs, Rt</code></td>
+                                <td>Performs 32-bit addition or subtraction: <code>Rd ← Rs ± Rt</code></td>
+                            </tr>
+                            <tr>
+                                <td><b>AND / OR / XOR / NOR</b></td>
+                                <td>R-Type</td>
+                                <td><code>AND Rd, Rs, Rt</code></td>
+                                <td>Bitwise logical operations on register operands</td>
+                            </tr>
+                            <tr>
+                                <td><b>SLT / SLTI</b></td>
+                                <td>R / I-Type</td>
+                                <td><code>SLT Rd, Rs, Rt</code></td>
+                                <td>Set Less Than: <code>Rd ← (Rs &lt; Rt) ? 1 : 0</code></td>
+                            </tr>
+                            <tr>
+                                <td><b>ADDI / SUBI</b></td>
+                                <td>I-Type</td>
+                                <td><code>ADDI Rd, Rs, imm</code></td>
+                                <td>Arithmetic with sign-extended immediate constant</td>
+                            </tr>
+                            <tr>
+                                <td><b>LW / SW</b></td>
+                                <td>I-Type</td>
+                                <td><code>LW Rt, offset(Rs)</code></td>
+                                <td>Load Word from / Store Word to data memory: <code>MEM[Rs + offset]</code></td>
+                            </tr>
+                            <tr>
+                                <td><b>BEQ / BNE</b></td>
+                                <td>Branch</td>
+                                <td><code>BEQ Rs, Rt, LABEL</code></td>
+                                <td>Conditional branch on register equality or inequality</td>
+                            </tr>
+                            <tr>
+                                <td><b>J / JR / NOP</b></td>
+                                <td>Control</td>
+                                <td><code>J LABEL</code></td>
+                                <td>Unconditional jump, register jump, and No-Operation</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Amdahl's Law Section -->
+        <section id="amdahl" class="main-container">
+            <div class="panel">
+                <div class="eyebrow">PERFORMANCE ANALYSIS</div>
+                <h2 class="section-title">Amdahl's Law Speedup Analyzer</h2>
+                <p class="hero-desc" style="font-size: 0.95rem; margin-bottom: 24px;">
+                    Amdahl's law calculates the theoretical upper bound on speedup when only a fraction <em>P</em> of a program is enhanced or parallelized with acceleration factor <em>S</em>.
+                </p>
+
+                <div class="amdahl-layout">
+                    <div class="amdahl-controls-card">
+                        <div class="amdahl-input-row">
+                            <label for="fraction">Parallel / Enhanced Fraction (<em>P</em>):</label>
+                            <span><input id="fraction" type="number" min="0" max="100" value="60"> %</span>
+                        </div>
+                        <input id="fractionSlider" type="range" min="0" max="100" value="60" aria-label="Parallel fraction percentage slider">
+
+                        <div class="amdahl-input-row">
+                            <label for="factor">Subsystem Speedup Factor (<em>S</em>):</label>
+                            <span><input id="factor" type="number" min="1" step="0.5" value="4"> ×</span>
+                        </div>
+
+                        <div class="amdahl-formula-box">
+                            S<sub>overall</sub> = 1 / ((1 − P) + P / S)
+                        </div>
+
+                        <div class="amdahl-summary-banner">
+                            <div>
+                                <small>THEORETICAL MAXIMUM (S → ∞)</small>
+                                <div id="amdahlMax" style="font-weight: 700; font-family: var(--font-display); font-size: 1.2rem; color: var(--text-main);">2.50×</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <small>OVERALL SPEEDUP</small>
+                                <strong id="amdahlResult">1.82×</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic SVG Curve Chart -->
+                    <div class="amdahl-chart-card">
+                        <div class="panel-subtitle" style="margin-bottom: 8px;">Speedup Curve (S<sub>overall</sub> vs Parallel Fraction P)</div>
+                        <div id="amdahlChart" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <span>PIPELINE LAB · COA MICRO PROJECT</span>
+        <span>Interactive 5-Stage RISC Processor Architecture & Datapath Simulator</span>
+    </footer>
+
+    <!-- Modular Scripts -->
+    <script src="js/isa.js"></script>
+    <script src="js/parser.js"></script>
+    <script src="js/pipeline.js"></script>
+    <script src="js/datapath.js"></script>
+    <script src="js/amdahl.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
