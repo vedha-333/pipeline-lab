@@ -9,7 +9,7 @@
 [![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-f7df1e?style=for-the-badge&logo=javascript&logoColor=111111)](https://developer.mozilla.org/docs/Web/JavaScript)
 [![License](https://img.shields.io/badge/License-MIT-16a34a?style=for-the-badge)](package.json)
 
-<p><b>🔗 Live application:</b> <a href="PASTE_YOUR_DEPLOYMENT_URL_HERE">Add your deployment URL here</a></p>
+<p><b>🔗 Live application:</b> <a href="https://pipeline-lab-wheat.vercel.app/#datapath-section">Add your deployment URL here</a></p>
 
 *An interactive Computer Organization and Architecture project for visualizing instruction execution, pipeline hazards, datapath activity, and CPU performance.*
 
