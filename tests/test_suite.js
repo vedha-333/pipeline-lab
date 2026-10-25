@@ -84,6 +84,29 @@ function runTests() {
         assert('Test 5 Exception', false, e.message);
     }
 
+    // Test 6: Flexible 1-operand and 2-operand syntax
+    try {
+        // 2-operand register: ADD R2, R3 (R2 = R2 + R3 => 100 + 10 = 110)
+        const p6a = parser.parse('ADD R2, R3');
+        const sim6a = new PipelineSimulator({ forwarding: true });
+        const res6a = sim6a.simulate(p6a);
+        assert('2-operand ADD R2, R3 computes 100 + 10 = 110', res6a.registers[2] === 110, `Got: ${res6a.registers[2]}`);
+
+        // 2-operand immediate: ADD R2, 25 (R2 = R2 + 25 => 100 + 25 = 125)
+        const p6b = parser.parse('ADD R2, 25');
+        const sim6b = new PipelineSimulator({ forwarding: true });
+        const res6b = sim6b.simulate(p6b);
+        assert('2-operand ADD R2, 25 computes 100 + 25 = 125', res6b.registers[2] === 125, `Got: ${res6b.registers[2]}`);
+
+        // 1-operand: ADD R2 (R2 = R2 + 1 => 100 + 1 = 101)
+        const p6c = parser.parse('ADD R2');
+        const sim6c = new PipelineSimulator({ forwarding: true });
+        const res6c = sim6c.simulate(p6c);
+        assert('1-operand ADD R2 increments R2 to 101', res6c.registers[2] === 101, `Got: ${res6c.registers[2]}`);
+    } catch (e) {
+        assert('Test 6 Exception', false, e.message);
+    }
+
     console.log(`\nResults: ${passed} / ${total} tests passed (${((passed / total) * 100).toFixed(0)}%)`);
     if (passed !== total) process.exit(1);
 }

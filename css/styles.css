@@ -328,6 +328,11 @@ h1.hero-title {
     margin-top: 10px;
 }
 
+.hero-hint {
+    color: var(--text-dim);
+    font-size: 0.86rem;
+}
+
 .hero-stats-bar {
     display: flex;
     flex-wrap: wrap;
@@ -762,6 +767,18 @@ select.control-select:focus {
     border-color: rgba(56, 232, 198, 0.3);
 }
 
+.tab-badge {
+    background: rgba(244, 63, 94, 0.25);
+    color: var(--rose);
+    border: 1px solid var(--rose);
+    border-radius: var(--radius-full);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 7px;
+    font-family: var(--font-mono);
+    line-height: 1.2;
+}
+
 .tab-pane {
     display: none;
 }
@@ -891,12 +908,24 @@ select.control-select:focus {
 .stage-cell.WB { background: #4c1122; color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.4); }
 .stage-cell.STALL { background: var(--stall-bg); color: var(--stall-text); border: 1px dashed #64748b; font-size: 0.65rem; }
 
-/* Active Cycle Column Highlighting */
+/* Active Cycle Column Highlighting & Animation */
 .timeline-table-wrap th.active-cycle,
 .timeline-table-wrap td.active-cycle {
     box-shadow: inset 0 0 0 2px var(--cyan);
     opacity: 1 !important;
-    background-color: rgba(56, 232, 198, 0.08) !important;
+    background-color: rgba(56, 232, 198, 0.12) !important;
+    animation: cycleFlash 0.3s ease-out;
+}
+
+@keyframes cycleFlash {
+    0% {
+        background-color: rgba(56, 232, 198, 0.35);
+        transform: scale(1.02);
+    }
+    100% {
+        background-color: rgba(56, 232, 198, 0.12);
+        transform: scale(1);
+    }
 }
 
 .timeline-table-wrap td.past-cycle {
@@ -907,11 +936,122 @@ select.control-select:focus {
     opacity: 0.2;
 }
 
+/* Run feedback: a short launch pulse followed by a moving pipeline signal. */
+.run-button {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    min-height: 42px;
+    box-shadow: 0 0 0 0 var(--cyan-glow);
+    transition: transform 0.2s ease, box-shadow 0.25s ease, background-color 0.2s ease;
+}
+
+.run-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px var(--cyan-glow);
+}
+
+.run-button:focus-visible {
+    outline: 3px solid var(--cyan);
+    outline-offset: 4px;
+    box-shadow: 0 0 0 7px var(--cyan-glow), 0 8px 24px var(--cyan-glow);
+}
+
+.run-button:active { transform: translateY(0) scale(0.97); }
+
+.run-spark {
+    position: absolute;
+    z-index: 0;
+    inset: 0 auto 0 -45%;
+    width: 36%;
+    opacity: 0;
+    transform: skewX(-20deg);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+}
+
+.run-button.btn-animating {
+    animation: btnPulse 0.65s cubic-bezier(.2,.8,.2,1);
+}
+
+.run-button.is-running .run-spark {
+    opacity: 1;
+    animation: runSignal 1.15s ease-in-out infinite;
+}
+
+.run-button-label { position: relative; z-index: 1; }
+
+.run-button.is-running .run-button-label::after {
+    content: '';
+    display: inline-block;
+    width: 0.8em;
+    animation: runDots 1.2s steps(4, end) infinite;
+}
+
+@keyframes btnPulse {
+    0% {
+        transform: scale(0.96);
+        box-shadow: 0 0 0 0 rgba(56, 232, 198, 0.7);
+    }
+    50% {
+        transform: scale(1.04);
+        box-shadow: 0 0 24px 6px rgba(56, 232, 198, 0.5);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 4px 16px rgba(56, 232, 198, 0.35);
+    }
+}
+
+@keyframes runSignal {
+    0% { left: -45%; }
+    100% { left: 115%; }
+}
+
+@keyframes runDots {
+    0% { content: ''; }
+    25% { content: '.'; }
+    50% { content: '..'; }
+    75%, 100% { content: '...'; }
+}
+
+/* Quietly bring the newly calculated evidence into focus. */
+.results-refresh .metric-card {
+    animation: resultLift 0.45s both;
+}
+
+.results-refresh .metric-card:nth-child(2) { animation-delay: 55ms; }
+.results-refresh .metric-card:nth-child(3) { animation-delay: 110ms; }
+.results-refresh .metric-card:nth-child(4) { animation-delay: 165ms; }
+.results-refresh .metric-card:nth-child(5) { animation-delay: 220ms; }
+.results-refresh .metric-card:nth-child(6) { animation-delay: 275ms; }
+
+.results-refresh .timeline-table-wrap tbody tr {
+    animation: resultLift 0.42s both;
+}
+
+.results-refresh .timeline-table-wrap tbody tr:nth-child(2) { animation-delay: 60ms; }
+.results-refresh .timeline-table-wrap tbody tr:nth-child(3) { animation-delay: 120ms; }
+.results-refresh .timeline-table-wrap tbody tr:nth-child(4) { animation-delay: 180ms; }
+
+@keyframes resultLift {
+    from { opacity: 0.35; transform: translateY(7px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 .empty-state-text {
     padding: 48px;
     text-align: center;
     color: var(--text-muted);
     font-size: 0.95rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }
 
 /* Stepper Bar */
@@ -1023,6 +1163,12 @@ select.control-select:focus {
 .stage-card-active {
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
+    animation: stageArrive 0.32s ease-out both;
+}
+
+@keyframes stageArrive {
+    from { opacity: 0.68; transform: translateY(5px) scale(0.985); }
+    to { opacity: 1; transform: translateY(-2px) scale(1); }
 }
 
 .if-active { border-color: var(--cyan); box-shadow: 0 0 16px var(--cyan-glow); }
@@ -1212,6 +1358,35 @@ select.control-select:focus {
 
 .reg-changed .reg-name {
     color: var(--cyan);
+}
+
+.register-activity {
+    min-height: 32px;
+    margin: 8px 0;
+    padding: 6px 10px;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+}
+
+.reg-writeback {
+    position: relative;
+    z-index: 1;
+    border-color: var(--cyan) !important;
+    animation: registerWriteback 0.72s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.reg-writeback .reg-val {
+    color: var(--cyan);
+}
+
+@keyframes registerWriteback {
+    0% { transform: scale(0.9); box-shadow: 0 0 0 0 var(--cyan-glow); }
+    45% { transform: scale(1.1); box-shadow: 0 0 0 5px var(--cyan-glow), 0 0 20px var(--cyan-glow); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
 }
 
 .memory-grid {

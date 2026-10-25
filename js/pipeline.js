@@ -50,6 +50,7 @@
                 const ins = instructions[pc];
                 const instanceId = executedInstances.length;
                 const srcValues = ins.sources.map(r => (r === 0 ? 0 : (registers[r] || 0)));
+                const aluRight = ins.usesImmediate ? ins.imm : srcValues[1];
                 
                 let result = 0;
                 let memAddress = 0;
@@ -58,28 +59,28 @@
 
                 switch (ins.op) {
                     case 'ADD':
-                        result = srcValues[0] + srcValues[1];
+                        result = srcValues[0] + aluRight;
                         break;
                     case 'SUB':
-                        result = srcValues[0] - srcValues[1];
+                        result = srcValues[0] - aluRight;
                         break;
                     case 'AND':
-                        result = srcValues[0] & srcValues[1];
+                        result = srcValues[0] & aluRight;
                         break;
                     case 'OR':
-                        result = srcValues[0] | srcValues[1];
+                        result = srcValues[0] | aluRight;
                         break;
                     case 'XOR':
-                        result = srcValues[0] ^ srcValues[1];
+                        result = srcValues[0] ^ aluRight;
                         break;
                     case 'NOR':
-                        result = ~(srcValues[0] | srcValues[1]);
+                        result = ~(srcValues[0] | aluRight);
                         break;
                     case 'SLT':
-                        result = srcValues[0] < srcValues[1] ? 1 : 0;
+                        result = srcValues[0] < aluRight ? 1 : 0;
                         break;
                     case 'MUL':
-                        result = srcValues[0] * srcValues[1];
+                        result = srcValues[0] * aluRight;
                         break;
                     case 'ADDI':
                         result = srcValues[0] + ins.imm;
@@ -323,6 +324,7 @@
                     rd: inst.rd,
                     rs: inst.rs,
                     rt: inst.rt,
+                    controlSignals: { ...inst.controlSignals },
                     result: inst.result,
                     stages: stageMap,
                     stalls: inst.stalls,
@@ -368,7 +370,7 @@
                 }
 
                 if (state.EX) {
-                    state.signals = currentISA ? currentISA.getControlSignals(state.EX.op) : {};
+                    state.signals = state.EX.controlSignals || (currentISA ? currentISA.getControlSignals(state.EX.op) : {});
                     if (state.MEM && state.MEM.rd && state.MEM.rd !== 0 && state.EX.sources && state.EX.sources.includes(state.MEM.rd)) {
                         state.forwardA = 1;
                     }

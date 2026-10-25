@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/styles.css?v=3">
 </head>
 <body>
     <!-- Top Navigation -->
@@ -40,10 +40,11 @@
                 <span class="brand-accent">move through a CPU.</span>
             </h1>
             <p class="hero-desc">
-                Explore instruction execution, pipeline timing, data dependencies, stalls, and performance in an interactive five-stage processor model.
+                Follow each instruction from fetch to write-back. See how pipelining overlaps work, where hazards create stalls, and how forwarding keeps the processor moving.
             </p>
             <div class="hero-cta">
-                <a class="btn btn-primary" href="#simulator">Open simulator <span>↓</span></a>
+                <a id="heroOpenBtn" class="btn btn-primary" href="#simulator">Explore the processor <span>↓</span></a>
+                <span class="hero-hint">A guided, interactive 5-stage RISC demonstration</span>
             </div>
             <div class="hero-stats-bar">
                 <div class="stat-item">
@@ -68,7 +69,7 @@
                     <div class="eyebrow">INTERACTIVE WORKBENCH</div>
                     <h2 class="section-title">CPU simulator</h2>
                 </div>
-                <div class="status-indicator">
+                <div class="status-indicator" role="status" aria-live="polite">
                     <span class="dot"></span>
                     <span id="runLabel">READY</span>
                 </div>
@@ -81,15 +82,21 @@
                     <div class="panel-header">
                         <div>
                             <div class="panel-title">Assembly Program</div>
-                            <div class="panel-subtitle">Enter MIPS-style RISC instructions · Labels & comments (#) supported</div>
+                            <div class="panel-subtitle">MIPS-style instructions · R-type arithmetic supports 1–3 operand shorthand</div>
                         </div>
                         <select id="example" class="control-select" aria-label="Load Example Preset">
-                            <option value="hazard">Preset: RAW Data Dependency</option>
-                            <option value="basic">Preset: Independent Instructions</option>
-                            <option value="memory">Preset: Load-Use Hazard & Store</option>
-                            <option value="branch">Preset: Taken Branch Flush</option>
-                            <option value="loop">Preset: Iterative Loop (BNE)</option>
-                            <option value="logic">Preset: Bitwise & Comparison</option>
+                            <optgroup label="── Pipeline Concepts ──">
+                                <option value="basic">1. Ideal Pipeline (No Hazards)</option>
+                                <option value="hazard">2. RAW Data Hazard &amp; Forwarding</option>
+                                <option value="memory">3. Load-Use Hazard (Stall)</option>
+                                <option value="branch">4. Control Hazard (Branch Flush)</option>
+                                <option value="loop">5. Iterative Loop (BNE Branch)</option>
+                                <option value="logic">6. Bitwise &amp; Comparison Ops</option>
+                            </optgroup>
+                            <optgroup label="── Shorthand Syntax ──">
+                                <option value="shorthand2">7. 2-Operand: ADD Rd, Rs → Rd = Rd + Rs</option>
+                                <option value="shorthand1">8. 1-Operand: ADD Rd → Rd = Rd + 1</option>
+                            </optgroup>
                             <option value="custom">Custom Program</option>
                         </select>
                     </div>
@@ -97,7 +104,7 @@
                     <textarea id="program" class="editor-textarea" spellcheck="false" placeholder="# Type your assembly instructions here..."></textarea>
                     
                     <div class="editor-footer">
-                        <span>Tip: Press <b>Ctrl + Enter</b> to simulate · Register names R0–R31</span>
+                        <span>Tip: <b>ADD R1</b> increments R1 · <b>ADD R1, R2</b> adds into R1 · Ctrl + Enter runs</span>
                         <span id="lineCount">0 lines</span>
                     </div>
 
@@ -112,7 +119,7 @@
                             <span>Shared Memory Bus</span>
                         </label>
                         <div class="right-group">
-                            <button id="run" class="btn btn-primary" title="Simulate entire program">▶ Run Simulation</button>
+                            <button id="run" class="btn btn-primary run-button" title="Simulate the program and animate its progress" aria-label="Run simulation">▶ <span class="run-button-label">Run Simulation</span><span class="run-spark" aria-hidden="true"></span></button>
                             <button id="reset" class="btn btn-quiet" title="Clear results and reset state">Reset</button>
                         </div>
                     </div>
@@ -128,6 +135,7 @@
                             <option value="bin">Binary</option>
                         </select>
                     </div>
+                    <div id="registerActivity" class="register-activity" role="status" aria-live="polite">Run the program to watch register write-back.</div>
                     <div id="registerGrid" class="register-grid"></div>
                 </div>
 
@@ -209,10 +217,21 @@
 
             <!-- Central Execution Tabs: Timeline & Datapath -->
             <div id="datapath-section" class="panel timeline-panel">
+                <!-- Persistent Clock Stepper & Playback Controls across all views -->
+                <div class="cycle-stepper-bar" style="margin-top: 0; margin-bottom: 18px;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button id="prevStep" class="btn btn-sm" title="Step backward one cycle">◂ Prev</button>
+                        <button id="playBtn" class="btn btn-sm" title="Auto-advance clock cycles">▶ Auto Play</button>
+                        <button id="step" class="btn btn-sm btn-primary" title="Step forward one cycle">Step Next ▸</button>
+                    </div>
+                    <input id="cycleSlider" type="range" min="1" max="1" value="1" disabled title="Scrub through clock cycles">
+                    <span id="currentCycleLabel" class="stage-code" style="font-size: 0.85rem; min-width: 110px; text-align: right;">Cycle 1 / 1</span>
+                </div>
+
                 <div class="view-tabs">
                     <button class="tab-btn active" data-tab="tab-timeline">📊 Pipeline Timeline Schedule</button>
                     <button class="tab-btn" data-tab="tab-datapath">⚏ 5-Stage Datapath Hardware View</button>
-                    <button class="tab-btn" data-tab="tab-hazards">⚠ Hazard Event Log</button>
+                    <button class="tab-btn" data-tab="tab-hazards">⚠ Hazard Event Log <span id="tabHazardBadge" class="tab-badge" style="display: none;">0</span></button>
                     <button class="tab-btn" data-tab="tab-memory">🗄 Data Memory Map</button>
                 </div>
 
@@ -237,13 +256,6 @@
                         <div class="empty-state-text">Your cycle-by-cycle pipeline schedule will appear here after running simulation.</div>
                     </div>
 
-                    <div class="cycle-stepper-bar">
-                        <button id="prevStep" class="btn btn-sm" title="Step backward one cycle">◂ Prev</button>
-                        <button id="playBtn" class="btn btn-sm" title="Auto-advance clock cycles">▶ Auto Play</button>
-                        <button id="step" class="btn btn-sm btn-primary" title="Step forward one cycle">Step Next ▸</button>
-                        <input id="cycleSlider" type="range" min="1" max="1" value="1" disabled title="Scrub through cycles">
-                        <span id="currentCycleLabel" class="stage-code" style="font-size: 0.85rem; min-width: 100px; text-align: right;">Cycle 1 / 1</span>
-                    </div>
                     <div id="timelineNote" class="editor-footer" style="margin-top: 10px;">Run a program to generate the cycle chart.</div>
                 </div>
 
@@ -426,11 +438,11 @@
     </footer>
 
     <!-- Modular Scripts -->
-    <script src="js/isa.js"></script>
-    <script src="js/parser.js"></script>
-    <script src="js/pipeline.js"></script>
-    <script src="js/datapath.js"></script>
-    <script src="js/amdahl.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/isa.js?v=3"></script>
+    <script src="js/parser.js?v=3"></script>
+    <script src="js/pipeline.js?v=3"></script>
+    <script src="js/datapath.js?v=3"></script>
+    <script src="js/amdahl.js?v=3"></script>
+    <script src="js/app.js?v=3"></script>
 </body>
 </html>

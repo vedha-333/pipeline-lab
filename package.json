@@ -5,6 +5,7 @@
   "main": "simulator.js",
   "scripts": {
     "start": "python -m http.server 5500",
+    "dev": "python -m http.server 5500",
     "test": "node tests/test_suite.js"
   },
   "keywords": [

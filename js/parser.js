@@ -21,6 +21,12 @@
             this.errors = [];
         }
 
+        static isRegisterToken(token) {
+            if (!token) return false;
+            const cleaned = token.toUpperCase().trim();
+            return /^R([0-9]|[12][0-9]|3[01])$/.test(cleaned) || /^\$([0-9]|[12][0-9]|3[01])$/.test(cleaned);
+        }
+
         static parseRegister(token, lineNum) {
             if (!token) {
                 throw new Error(`Line ${lineNum}: Missing expected register operand.`);
@@ -137,6 +143,7 @@
                     storeReg: null,
                     label: null,
                     targetIndex: null,
+                    usesImmediate: false,
                     controlSignals: currentISA.getControlSignals(opcode)
                 };
 
@@ -149,26 +156,78 @@
                     case 'NOR':
                     case 'SLT':
                     case 'MUL': {
-                        if (operands.length !== 3) {
-                            throw new Error(`Line ${lineNum}: "${opcode}" requires 3 operands: Rd, Rs, Rt (e.g. ${opcode} R1, R2, R3).`);
+                        if (operands.length === 3) {
+                            // 3 Operands: Rd, Rs, Rt (Standard RISC: Rd = Rs op Rt)
+                            ins.rd = AssemblyParser.parseRegister(operands[0], lineNum);
+                            ins.rs = AssemblyParser.parseRegister(operands[1], lineNum);
+                            ins.rt = AssemblyParser.parseRegister(operands[2], lineNum);
+                            ins.sources = [ins.rs, ins.rt];
+                        } else if (operands.length === 2) {
+                            // 2 Operands: Rd, Rs (Rd = Rd op Rs) or Rd, immediate (Rd = Rd op imm)
+                            ins.rd = AssemblyParser.parseRegister(operands[0], lineNum);
+                            if (AssemblyParser.isRegisterToken(operands[1])) {
+                                ins.rs = ins.rd;
+                                ins.rt = AssemblyParser.parseRegister(operands[1], lineNum);
+                                ins.sources = [ins.rs, ins.rt];
+                            } else {
+                                // A literal is the second ALU input (e.g. AND R1, 5 means R1 = R1 & 5).
+                                // ADD and SUB use their dedicated immediate opcodes.
+                                ins.op = opcode === 'ADD' ? 'ADDI' : (opcode === 'SUB' ? 'SUBI' : opcode);
+                                ins.type = 'I';
+                                ins.imm = AssemblyParser.parseImmediate(operands[1], lineNum);
+                                ins.usesImmediate = true;
+                                ins.rs = ins.rd;
+                                ins.sources = [ins.rs];
+                                ins.controlSignals = opcode === 'ADD' || opcode === 'SUB'
+                                    ? (currentISA.getControlSignals(ins.op) || currentISA.getControlSignals(opcode))
+                                    : { ...currentISA.getControlSignals(opcode), ALUSrc: 1 };
+                            }
+                        } else if (operands.length === 1) {
+                            // 1 Operand: Rd (Rd = Rd + 1 for ADD, Rd = Rd - 1 for SUB, or Rd op R0)
+                            ins.rd = AssemblyParser.parseRegister(operands[0], lineNum);
+                            if (opcode === 'ADD' || opcode === 'SUB') {
+                                ins.op = opcode === 'ADD' ? 'ADDI' : 'SUBI';
+                                ins.type = 'I';
+                                ins.imm = 1;
+                                ins.rs = ins.rd;
+                                ins.sources = [ins.rs];
+                                ins.controlSignals = currentISA.getControlSignals(ins.op) || currentISA.getControlSignals(opcode);
+                            } else {
+                                // Default unary/single register operation against R0
+                                ins.rs = ins.rd;
+                                ins.rt = 0;
+                                ins.sources = [ins.rs, ins.rt];
+                            }
+                        } else {
+                            throw new Error(`Line ${lineNum}: "${opcode}" accepts 1, 2, or 3 operands (e.g. ${opcode} R1 | ${opcode} R1, R2 | ${opcode} R1, R2, R3).`);
                         }
-                        ins.rd = AssemblyParser.parseRegister(operands[0], lineNum);
-                        ins.rs = AssemblyParser.parseRegister(operands[1], lineNum);
-                        ins.rt = AssemblyParser.parseRegister(operands[2], lineNum);
-                        ins.sources = [ins.rs, ins.rt];
                         break;
                     }
 
                     case 'ADDI':
                     case 'SUBI':
                     case 'SLTI': {
-                        if (operands.length !== 3) {
-                            throw new Error(`Line ${lineNum}: "${opcode}" requires 3 operands: Rd, Rs, immediate (e.g. ${opcode} R1, R2, 10).`);
+                        if (operands.length === 3) {
+                            // 3 Operands: Rd, Rs, imm (Rd = Rs op imm)
+                            ins.rd = AssemblyParser.parseRegister(operands[0], lineNum);
+                            ins.rs = AssemblyParser.parseRegister(operands[1], lineNum);
+                            ins.imm = AssemblyParser.parseImmediate(operands[2], lineNum);
+                            ins.sources = [ins.rs];
+                        } else if (operands.length === 2) {
+                            // 2 Operands: Rd, imm (Rd = Rd op imm)
+                            ins.rd = AssemblyParser.parseRegister(operands[0], lineNum);
+                            ins.rs = ins.rd;
+                            ins.imm = AssemblyParser.parseImmediate(operands[1], lineNum);
+                            ins.sources = [ins.rs];
+                        } else if (operands.length === 1) {
+                            // 1 Operand: Rd (increment / decrement by 1: Rd = Rd op 1)
+                            ins.rd = AssemblyParser.parseRegister(operands[0], lineNum);
+                            ins.rs = ins.rd;
+                            ins.imm = 1;
+                            ins.sources = [ins.rs];
+                        } else {
+                            throw new Error(`Line ${lineNum}: "${opcode}" accepts 1, 2, or 3 operands (e.g. ${opcode} R1 | ${opcode} R1, 10 | ${opcode} R1, R2, 10).`);
                         }
-                        ins.rd = AssemblyParser.parseRegister(operands[0], lineNum);
-                        ins.rs = AssemblyParser.parseRegister(operands[1], lineNum);
-                        ins.imm = AssemblyParser.parseImmediate(operands[2], lineNum);
-                        ins.sources = [ins.rs];
                         break;
                     }
 
